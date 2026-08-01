@@ -36,10 +36,15 @@ function App() {
     };
   }, []);
 
-  const handleJoin = (id) => {
+  const handleJoin = (data) => {
+    const id = typeof data === 'string' ? data : data.roomId;
     setRoomId(id);
-    socket.emit('joinRoom', id);
+    socket.emit('joinRoom', data);
     setIsInRoom(true);
+  };
+
+  const handlePlayAgain = () => {
+    socket.emit('playAgain', { roomId });
   };
 
   const handlePlayMove = (card, row, col) => {
@@ -68,25 +73,31 @@ function App() {
             <div className="game-layout">
               <div className="board-section">
                 <div className="status-panel">
-                  {gameState.winner ? (
-                    <h2 className="winner-msg">
-                      {gameState.winner === socket.id ? 'You Won! 🎉' : 'Opponent Won! 😢'}
-                    </h2>
-                  ) : (
-                    <h2 className="turn-indicator">
-                      {gameState.players[gameState.turn] === socket.id ? "Your Turn" : "Opponent's Turn"}
-                    </h2>
-                  )}
+                  <h2 className="turn-indicator">
+                    {gameState.players[gameState.turn] === socket.id ? "Your Turn" : "Opponent's Turn"}
+                  </h2>
                   
                   <div className="players-info">
                     <div className={`player-badge p0 ${gameState.turn === 0 ? 'active' : ''}`}>
-                      Player 1 {gameState.players[0] === socket.id ? '(You)' : ''}
+                      Player 1 {gameState.players[0] === socket.id ? '(You)' : ''} 
+                      <span className="score"> {gameState.scores ? gameState.scores[0] : 0}/{gameState.sequencesToWin || 2}</span>
                     </div>
                     <div className={`player-badge p1 ${gameState.turn === 1 ? 'active' : ''}`}>
-                      Player 2 {gameState.players[1] === socket.id ? '(You)' : ''}
+                      Player 2 {gameState.players[1] === socket.id ? '(You)' : ''} 
+                      <span className="score"> {gameState.scores ? gameState.scores[1] : 0}/{gameState.sequencesToWin || 2}</span>
                     </div>
                   </div>
                 </div>
+
+                {gameState.winner && (
+                  <div className="victory-modal">
+                    <div className="victory-content">
+                      <h2>{gameState.winner === socket.id ? 'You Won! 🎉' : 'Opponent Won! 😢'}</h2>
+                      <p>Sequences completed: {gameState.winner === socket.id ? gameState.scores[gameState.playerIndex] : gameState.scores[1 - gameState.playerIndex]}</p>
+                      <button onClick={handlePlayAgain} className="play-again-btn">Play Again</button>
+                    </div>
+                  </div>
+                )}
 
                 <Board 
                   gameState={gameState} 

@@ -2,11 +2,12 @@ import { useState } from 'react';
 
 function Room({ onJoin }) {
   const [roomId, setRoomId] = useState('');
+  const [sequencesToWin, setSequencesToWin] = useState(2);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (roomId.trim()) {
-      onJoin(roomId.trim());
+      onJoin({ roomId: roomId.trim(), sequencesToWin });
     }
   };
 
@@ -24,6 +25,14 @@ function Room({ onJoin }) {
             required
             autoFocus
           />
+          <div className="settings-group">
+            <label>Sequences to Win:</label>
+            <select value={sequencesToWin} onChange={e => setSequencesToWin(Number(e.target.value))}>
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+            </select>
+          </div>
           <button type="submit">Play</button>
         </form>
       </div>

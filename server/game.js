@@ -49,6 +49,7 @@ class SequenceGame {
     this.hands = {}; // playerId -> array of cards
     this.started = false;
     this.winner = null;
+    this.sequencesToWin = 2;
   }
 
   generateDeck() {
@@ -152,80 +153,85 @@ class SequenceGame {
     return true;
   }
 
-  checkWin(playerIndex) {
-    const isPlayerOrWild = (r, c) => {
-      if (r < 0 || r > 9 || c < 0 || c > 9) return false;
-      if (this.boardLayout[r][c] === 'WILD') return true;
-      return this.boardState[r][c] === playerIndex;
-    };
+  isPlayerOrWild(playerIndex, r, c) {
+    if (r < 0 || r > 9 || c < 0 || c > 9) return false;
+    if (this.boardLayout[r][c] === 'WILD') return true;
+    return this.boardState[r][c] === playerIndex;
+  }
 
-    const countSequences = () => {
-      let seqs = 0;
-      let usedH = Array(10).fill(null).map(() => Array(10).fill(false));
-      let usedV = Array(10).fill(null).map(() => Array(10).fill(false));
-      let usedD1 = Array(10).fill(null).map(() => Array(10).fill(false));
-      let usedD2 = Array(10).fill(null).map(() => Array(10).fill(false));
+  countSequences(playerIndex) {
+    let seqs = 0;
+    let usedH = Array(10).fill(null).map(() => Array(10).fill(false));
+    let usedV = Array(10).fill(null).map(() => Array(10).fill(false));
+    let usedD1 = Array(10).fill(null).map(() => Array(10).fill(false));
+    let usedD2 = Array(10).fill(null).map(() => Array(10).fill(false));
 
-      for (let r = 0; r < 10; r++) {
-        let count = 0;
-        for (let c = 0; c < 10; c++) {
-          if (isPlayerOrWild(r, c) && !usedH[r][c]) {
-            count++;
-            if (count === 5) {
-              seqs++;
-              count = 0;
-              for(let i=0; i<5; i++) usedH[r][c-i] = true;
-            }
-          } else count = 0;
-        }
-      }
-
+    for (let r = 0; r < 10; r++) {
+      let count = 0;
       for (let c = 0; c < 10; c++) {
+        if (this.isPlayerOrWild(playerIndex, r, c) && !usedH[r][c]) {
+          count++;
+          if (count === 5) {
+            seqs++;
+            count = 0;
+            for(let i=0; i<5; i++) usedH[r][c-i] = true;
+          }
+        } else count = 0;
+      }
+    }
+
+    for (let c = 0; c < 10; c++) {
+      let count = 0;
+      for (let r = 0; r < 10; r++) {
+        if (this.isPlayerOrWild(playerIndex, r, c) && !usedV[r][c]) {
+          count++;
+          if (count === 5) {
+            seqs++;
+            count = 0;
+            for(let i=0; i<5; i++) usedV[r-i][c] = true;
+          }
+        } else count = 0;
+      }
+    }
+
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 6; c++) {
         let count = 0;
-        for (let r = 0; r < 10; r++) {
-          if (isPlayerOrWild(r, c) && !usedV[r][c]) {
-            count++;
-            if (count === 5) {
-              seqs++;
-              count = 0;
-              for(let i=0; i<5; i++) usedV[r-i][c] = true;
-            }
-          } else count = 0;
+        for (let i = 0; i < 5; i++) {
+            if (this.isPlayerOrWild(playerIndex, r+i, c+i) && !usedD1[r+i][c+i]) count++;
+            else break;
+        }
+        if (count === 5) {
+          seqs++;
+          for (let i = 0; i < 5; i++) usedD1[r+i][c+i] = true;
         }
       }
+    }
 
-      for (let r = 0; r < 6; r++) {
-        for (let c = 0; c < 6; c++) {
-          let count = 0;
-          for (let i = 0; i < 5; i++) {
-             if (isPlayerOrWild(r+i, c+i) && !usedD1[r+i][c+i]) count++;
-             else break;
-          }
-          if (count === 5) {
-            seqs++;
-            for (let i = 0; i < 5; i++) usedD1[r+i][c+i] = true;
-          }
+    for (let r = 4; r < 10; r++) {
+      for (let c = 0; c < 6; c++) {
+        let count = 0;
+        for (let i = 0; i < 5; i++) {
+            if (this.isPlayerOrWild(playerIndex, r-i, c+i) && !usedD2[r-i][c+i]) count++;
+            else break;
+        }
+        if (count === 5) {
+          seqs++;
+          for (let i = 0; i < 5; i++) usedD2[r-i][c+i] = true;
         }
       }
+    }
 
-      for (let r = 4; r < 10; r++) {
-        for (let c = 0; c < 6; c++) {
-          let count = 0;
-          for (let i = 0; i < 5; i++) {
-             if (isPlayerOrWild(r-i, c+i) && !usedD2[r-i][c+i]) count++;
-             else break;
-          }
-          if (count === 5) {
-            seqs++;
-            for (let i = 0; i < 5; i++) usedD2[r-i][c+i] = true;
-          }
-        }
-      }
+    return seqs;
+  }
 
-      return seqs;
-    };
+  checkWin(playerIndex) {
+    return this.countSequences(playerIndex) >= this.sequencesToWin;
+  }
 
-    return countSequences() >= 2;
+  getScores() {
+    if (!this.started) return [0, 0];
+    return [this.countSequences(0), this.countSequences(1)];
   }
 
   getGameState(playerId) {
@@ -237,7 +243,9 @@ class SequenceGame {
       winner: this.winner,
       myHand: this.hands[playerId] || [],
       players: this.players,
-      playerIndex: this.players.indexOf(playerId)
+      playerIndex: this.players.indexOf(playerId),
+      sequencesToWin: this.sequencesToWin,
+      scores: this.getScores()
     };
   }
 }

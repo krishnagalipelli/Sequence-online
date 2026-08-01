@@ -24,9 +24,15 @@ const games = {}; // roomId -> SequenceGame instance
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
-  socket.on('joinRoom', (roomId) => {
+  socket.on('joinRoom', (data) => {
+    let roomId = typeof data === 'string' ? data : data.roomId;
+    let sequencesToWin = typeof data === 'string' ? 2 : data.sequencesToWin;
+
     if (!games[roomId]) {
       games[roomId] = new SequenceGame();
+      if (sequencesToWin) {
+        games[roomId].sequencesToWin = parseInt(sequencesToWin) || 2;
+      }
     }
     const game = games[roomId];
     
@@ -61,6 +67,16 @@ io.on('connection', (socket) => {
           io.to(pId).emit('gameState', game.getGameState(pId));
         });
       }
+    }
+  });
+
+  socket.on('playAgain', ({ roomId }) => {
+    const game = games[roomId];
+    if (game && game.started && game.winner) {
+      game.startGame(); // resets state and winner
+      game.players.forEach(pId => {
+        io.to(pId).emit('gameState', game.getGameState(pId));
+      });
     }
   });
 

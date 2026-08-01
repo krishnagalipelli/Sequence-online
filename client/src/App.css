@@ -124,8 +124,32 @@ header h1 {
   transition: border-color 0.3s;
 }
 
-.room-card input:focus {
+.room-card input:focus, .room-card select:focus {
   border-color: var(--primary);
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.settings-group label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.room-card select {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.3s;
 }
 
 .room-card button {
@@ -194,10 +218,11 @@ header h1 {
   font-weight: 600;
 }
 
-.winner-msg {
-  color: #4ade80;
-  font-size: 1.2rem;
-  animation: pulse 2s infinite;
+.score {
+  background: rgba(0,0,0,0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
 }
 
 .players-info {
@@ -501,6 +526,63 @@ header h1 {
   .card-content.orange {
     font-size: min(3.5vw, 2vh);
   }
+}
+
+/* Victory Modal */
+.victory-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+}
+
+.victory-content {
+  background: var(--panel-bg);
+  padding: 40px;
+  border-radius: 16px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+  animation: dropIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.victory-content h2 {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+  color: #4ade80;
+  animation: pulse 2s infinite;
+}
+
+.victory-content p {
+  font-size: 1.2rem;
+  margin-bottom: 25px;
+  color: var(--text-main);
+}
+
+.play-again-btn {
+  padding: 12px 24px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.play-again-btn:hover {
+  background: var(--primary-hover);
+  transform: scale(1.05);
+}
+
+.play-again-btn:active {
+  transform: scale(0.95);
 }
 
 @keyframes dropIn {
