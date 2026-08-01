@@ -1,0 +1,245 @@
+const SUITS = ['S', 'H', 'C', 'D'];
+const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'Q', 'K'];
+const JACKS = {
+  TWO_EYED: ['JD', 'JC'], // Wild - place anywhere
+  ONE_EYED: ['JS', 'JH']  // Remove opponent's chip
+};
+
+// Generate standard cards (no jacks)
+const STANDARD_CARDS = [];
+for (let suit of SUITS) {
+  for (let rank of RANKS) {
+    STANDARD_CARDS.push(rank + suit);
+  }
+}
+
+function generateBoard() {
+  const layout = Array(10).fill(null).map(() => Array(10).fill(null));
+  layout[0][0] = 'WILD';
+  layout[0][9] = 'WILD';
+  layout[9][0] = 'WILD';
+  layout[9][9] = 'WILD';
+
+  let cards = [...STANDARD_CARDS, ...STANDARD_CARDS];
+  // Shuffle cards for a random but valid layout
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+
+  let cardIndex = 0;
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 10; c++) {
+      if (layout[r][c] === 'WILD') continue;
+      layout[r][c] = cards[cardIndex++];
+    }
+  }
+  return layout;
+}
+
+const FIXED_BOARD = generateBoard();
+
+class SequenceGame {
+  constructor() {
+    this.boardLayout = FIXED_BOARD;
+    this.boardState = Array(10).fill(null).map(() => Array(10).fill(null)); // null, 0, or 1 (player id)
+    this.deck = this.generateDeck();
+    this.players = []; // Array of socket ids or objects
+    this.turn = 0; // Index of players array
+    this.hands = {}; // playerId -> array of cards
+    this.started = false;
+    this.winner = null;
+  }
+
+  generateDeck() {
+    let deck = [];
+    for (let i = 0; i < 2; i++) { // 2 decks
+      deck.push(...STANDARD_CARDS);
+      deck.push(...JACKS.TWO_EYED);
+      deck.push(...JACKS.ONE_EYED);
+    }
+    // Shuffle
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  }
+
+  addPlayer(playerId) {
+    if (this.players.length < 2 && !this.players.includes(playerId)) {
+      this.players.push(playerId);
+      this.hands[playerId] = [];
+      return true;
+    }
+    return false;
+  }
+
+  removePlayer(playerId) {
+    const idx = this.players.indexOf(playerId);
+    if (idx !== -1) {
+      this.players.splice(idx, 1);
+      delete this.hands[playerId];
+      this.started = false;
+      return true;
+    }
+    return false;
+  }
+
+  startGame() {
+    if (this.players.length === 2) {
+      this.started = true;
+      this.boardState = Array(10).fill(null).map(() => Array(10).fill(null));
+      this.deck = this.generateDeck();
+      this.winner = null;
+      this.turn = Math.floor(Math.random() * 2);
+      
+      this.hands[this.players[0]] = this.deck.splice(0, 7);
+      this.hands[this.players[1]] = this.deck.splice(0, 7);
+      return true;
+    }
+    return false;
+  }
+
+  isValidMove(playerId, cardPlayed, row, col) {
+    if (!this.started || this.winner || this.players[this.turn] !== playerId) return false;
+    
+    const cardIndex = this.hands[playerId].indexOf(cardPlayed);
+    if (cardIndex === -1) return false;
+
+    const boardCard = this.boardLayout[row][col];
+    const currentChip = this.boardState[row][col];
+
+    if (boardCard === 'WILD') return false;
+
+    if (JACKS.TWO_EYED.includes(cardPlayed)) {
+      return currentChip === null;
+    }
+
+    if (JACKS.ONE_EYED.includes(cardPlayed)) {
+      const opponentId = this.players.find(p => p !== playerId);
+      const opponentIndex = this.players.indexOf(opponentId);
+      return currentChip === opponentIndex;
+    }
+
+    return boardCard === cardPlayed && currentChip === null;
+  }
+
+  playMove(playerId, cardPlayed, row, col) {
+    if (!this.isValidMove(playerId, cardPlayed, row, col)) return false;
+
+    const cardIndex = this.hands[playerId].indexOf(cardPlayed);
+    this.hands[playerId].splice(cardIndex, 1);
+
+    const playerIndex = this.players.indexOf(playerId);
+
+    if (JACKS.ONE_EYED.includes(cardPlayed)) {
+      this.boardState[row][col] = null;
+    } else {
+      this.boardState[row][col] = playerIndex;
+    }
+
+    if (this.deck.length > 0) {
+      this.hands[playerId].push(this.deck.pop());
+    }
+
+    if (this.checkWin(playerIndex)) {
+      this.winner = playerId;
+    } else {
+      this.turn = (this.turn + 1) % 2;
+    }
+
+    return true;
+  }
+
+  checkWin(playerIndex) {
+    const isPlayerOrWild = (r, c) => {
+      if (r < 0 || r > 9 || c < 0 || c > 9) return false;
+      if (this.boardLayout[r][c] === 'WILD') return true;
+      return this.boardState[r][c] === playerIndex;
+    };
+
+    const countSequences = () => {
+      let seqs = 0;
+      let usedH = Array(10).fill(null).map(() => Array(10).fill(false));
+      let usedV = Array(10).fill(null).map(() => Array(10).fill(false));
+      let usedD1 = Array(10).fill(null).map(() => Array(10).fill(false));
+      let usedD2 = Array(10).fill(null).map(() => Array(10).fill(false));
+
+      for (let r = 0; r < 10; r++) {
+        let count = 0;
+        for (let c = 0; c < 10; c++) {
+          if (isPlayerOrWild(r, c) && !usedH[r][c]) {
+            count++;
+            if (count === 5) {
+              seqs++;
+              count = 0;
+              for(let i=0; i<5; i++) usedH[r][c-i] = true;
+            }
+          } else count = 0;
+        }
+      }
+
+      for (let c = 0; c < 10; c++) {
+        let count = 0;
+        for (let r = 0; r < 10; r++) {
+          if (isPlayerOrWild(r, c) && !usedV[r][c]) {
+            count++;
+            if (count === 5) {
+              seqs++;
+              count = 0;
+              for(let i=0; i<5; i++) usedV[r-i][c] = true;
+            }
+          } else count = 0;
+        }
+      }
+
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          let count = 0;
+          for (let i = 0; i < 5; i++) {
+             if (isPlayerOrWild(r+i, c+i) && !usedD1[r+i][c+i]) count++;
+             else break;
+          }
+          if (count === 5) {
+            seqs++;
+            for (let i = 0; i < 5; i++) usedD1[r+i][c+i] = true;
+          }
+        }
+      }
+
+      for (let r = 4; r < 10; r++) {
+        for (let c = 0; c < 6; c++) {
+          let count = 0;
+          for (let i = 0; i < 5; i++) {
+             if (isPlayerOrWild(r-i, c+i) && !usedD2[r-i][c+i]) count++;
+             else break;
+          }
+          if (count === 5) {
+            seqs++;
+            for (let i = 0; i < 5; i++) usedD2[r-i][c+i] = true;
+          }
+        }
+      }
+
+      return seqs;
+    };
+
+    return countSequences() >= 2;
+  }
+
+  getGameState(playerId) {
+    return {
+      started: this.started,
+      boardLayout: this.boardLayout,
+      boardState: this.boardState,
+      turn: this.turn,
+      winner: this.winner,
+      myHand: this.hands[playerId] || [],
+      players: this.players,
+      playerIndex: this.players.indexOf(playerId)
+    };
+  }
+}
+
+module.exports = SequenceGame;
