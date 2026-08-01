@@ -50,6 +50,7 @@ class SequenceGame {
     this.started = false;
     this.winner = null;
     this.sequencesToWin = 2;
+    this.playersCount = 2;
   }
 
   generateDeck() {
@@ -68,7 +69,7 @@ class SequenceGame {
   }
 
   addPlayer(playerId) {
-    if (this.players.length < 2 && !this.players.includes(playerId)) {
+    if (this.players.length < this.playersCount && !this.players.includes(playerId)) {
       this.players.push(playerId);
       this.hands[playerId] = [];
       return true;
@@ -88,15 +89,17 @@ class SequenceGame {
   }
 
   startGame() {
-    if (this.players.length === 2) {
+    if (this.players.length === this.playersCount) {
       this.started = true;
       this.boardState = Array(10).fill(null).map(() => Array(10).fill(null));
       this.deck = this.generateDeck();
       this.winner = null;
-      this.turn = Math.floor(Math.random() * 2);
+      this.turn = Math.floor(Math.random() * this.playersCount);
       
-      this.hands[this.players[0]] = this.deck.splice(0, 7);
-      this.hands[this.players[1]] = this.deck.splice(0, 7);
+      const cardsToDeal = this.playersCount === 3 ? 6 : 7;
+      for (let i = 0; i < this.playersCount; i++) {
+        this.hands[this.players[i]] = this.deck.splice(0, cardsToDeal);
+      }
       return true;
     }
     return false;
@@ -118,9 +121,10 @@ class SequenceGame {
     }
 
     if (JACKS.ONE_EYED.includes(cardPlayed)) {
-      const opponentId = this.players.find(p => p !== playerId);
-      const opponentIndex = this.players.indexOf(opponentId);
-      return currentChip === opponentIndex;
+      const lockedBoard = this.getLockedBoard();
+      if (lockedBoard[row][col]) return false;
+
+      return currentChip !== null && currentChip !== this.players.indexOf(playerId);
     }
 
     return boardCard === cardPlayed && currentChip === null;
@@ -147,7 +151,7 @@ class SequenceGame {
     if (this.checkWin(playerIndex)) {
       this.winner = playerId;
     } else {
-      this.turn = (this.turn + 1) % 2;
+      this.turn = (this.turn + 1) % this.playersCount;
     }
 
     return true;
@@ -208,30 +212,52 @@ class SequenceGame {
       }
     }
 
-    for (let r = 4; r < 10; r++) {
-      for (let c = 0; c < 6; c++) {
-        let count = 0;
-        for (let i = 0; i < 5; i++) {
-            if (this.isPlayerOrWild(playerIndex, r-i, c+i) && !usedD2[r-i][c+i]) count++;
-            else break;
+      for (let r = 4; r < 10; r++) {
+        for (let c = 0; c < 6; c++) {
+          let count = 0;
+          for (let i = 0; i < 5; i++) {
+              if (this.isPlayerOrWild(playerIndex, r-i, c+i) && !usedD2[r-i][c+i]) count++;
+              else break;
+          }
+          if (count === 5) {
+            seqs++;
+            for (let i = 0; i < 5; i++) usedD2[r-i][c+i] = true;
+          }
         }
-        if (count === 5) {
-          seqs++;
-          for (let i = 0; i < 5; i++) usedD2[r-i][c+i] = true;
+      }
+
+      let lockedCells = Array(10).fill(null).map(() => Array(10).fill(false));
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 10; c++) {
+          if (usedH[r][c] || usedV[r][c] || usedD1[r][c] || usedD2[r][c]) {
+            lockedCells[r][c] = true;
+          }
+        }
+      }
+
+      return { seqs, lockedCells };
+  }
+
+  getLockedBoard() {
+    let combinedLocked = Array(10).fill(null).map(() => Array(10).fill(false));
+    for (let p = 0; p < this.playersCount; p++) {
+      const { lockedCells } = this.countSequences(p);
+      for (let r = 0; r < 10; r++) {
+        for (let c = 0; c < 10; c++) {
+          if (lockedCells[r][c]) combinedLocked[r][c] = true;
         }
       }
     }
-
-    return seqs;
+    return combinedLocked;
   }
 
   checkWin(playerIndex) {
-    return this.countSequences(playerIndex) >= this.sequencesToWin;
+    return this.countSequences(playerIndex).seqs >= this.sequencesToWin;
   }
 
   getScores() {
-    if (!this.started) return [0, 0];
-    return [this.countSequences(0), this.countSequences(1)];
+    if (!this.started) return Array(this.playersCount).fill(0);
+    return this.players.map((_, i) => this.countSequences(i).seqs);
   }
 
   getGameState(playerId) {
@@ -245,6 +271,7 @@ class SequenceGame {
       players: this.players,
       playerIndex: this.players.indexOf(playerId),
       sequencesToWin: this.sequencesToWin,
+      playersCount: this.playersCount,
       scores: this.getScores()
     };
   }

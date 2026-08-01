@@ -27,16 +27,20 @@ io.on('connection', (socket) => {
   socket.on('joinRoom', (data) => {
     let roomId = typeof data === 'string' ? data : data.roomId;
     let sequencesToWin = typeof data === 'string' ? 2 : data.sequencesToWin;
+    let playersCount = typeof data === 'string' ? 2 : data.playersCount;
 
     if (!games[roomId]) {
       games[roomId] = new SequenceGame();
       if (sequencesToWin) {
         games[roomId].sequencesToWin = parseInt(sequencesToWin) || 2;
       }
+      if (playersCount) {
+        games[roomId].playersCount = parseInt(playersCount) || 2;
+      }
     }
     const game = games[roomId];
     
-    if (game.players.length >= 2) {
+    if (game.players.length >= game.playersCount) {
       socket.emit('roomFull');
       return;
     }
@@ -47,7 +51,7 @@ io.on('connection', (socket) => {
     game.addPlayer(socket.id);
     console.log(`Socket ${socket.id} joined room ${roomId}`);
 
-    if (game.players.length === 2) {
+    if (game.players.length === game.playersCount) {
       game.startGame();
     }
 

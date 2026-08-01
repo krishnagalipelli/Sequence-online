@@ -62,8 +62,8 @@ function Board({ gameState, playerId, onPlayMove }) {
         }
       } else {
         // Space is occupied
-        const opponentIndex = players.findIndex(p => p !== playerId);
-        if (currentChip === opponentIndex) {
+        const myIndex = players.indexOf(playerId);
+        if (currentChip !== myIndex) {
           // Can we play one-eyed jack?
           const oneEyed = ['JS', 'JH'].find(j => myHand.includes(j));
           if (oneEyed) cardToPlay = oneEyed;
@@ -89,6 +89,7 @@ function Board({ gameState, playerId, onPlayMove }) {
             let chipClass = '';
             if (chipValue === 0) chipClass = 'chip p0-chip';
             if (chipValue === 1) chipClass = 'chip p1-chip';
+            if (chipValue === 2) chipClass = 'chip p2-chip';
 
             // Determine if playable to highlight
             const isPlayable = isMyTurn && (() => {

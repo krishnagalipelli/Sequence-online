@@ -66,8 +66,8 @@ function App() {
         <main className="game-area">
           {!gameState || !gameState.started ? (
             <div className="waiting-message">
-              <h2>Waiting for opponent...</h2>
-              <p>Open another tab or device and join Room <strong>{roomId}</strong></p>
+              <h2>Waiting for others to join... ({gameState?.players?.length || 1}/{gameState?.playersCount || 2})</h2>
+              <p>Share this Room Code: <strong>{roomId}</strong></p>
             </div>
           ) : (
             <div className="game-layout">
@@ -78,14 +78,12 @@ function App() {
                   </h2>
                   
                   <div className="players-info">
-                    <div className={`player-badge p0 ${gameState.turn === 0 ? 'active' : ''}`}>
-                      Player 1 {gameState.players[0] === socket.id ? '(You)' : ''} 
-                      <span className="score"> {gameState.scores ? gameState.scores[0] : 0}/{gameState.sequencesToWin || 2}</span>
-                    </div>
-                    <div className={`player-badge p1 ${gameState.turn === 1 ? 'active' : ''}`}>
-                      Player 2 {gameState.players[1] === socket.id ? '(You)' : ''} 
-                      <span className="score"> {gameState.scores ? gameState.scores[1] : 0}/{gameState.sequencesToWin || 2}</span>
-                    </div>
+                    {Array.from({ length: gameState.playersCount }).map((_, idx) => (
+                      <div key={idx} className={`player-badge p${idx} ${gameState.turn === idx ? 'active' : ''}`}>
+                        Player {idx + 1} {gameState.players[idx] === socket.id ? '(You)' : ''} 
+                        <span className="score"> {gameState.scores ? gameState.scores[idx] : 0}/{gameState.sequencesToWin || 2}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
